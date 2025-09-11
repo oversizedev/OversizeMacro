@@ -29,5 +29,6 @@ public struct StringifyMacro: ExpressionMacro {
 struct OversizeMacroPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         StringifyMacro.self,
+        ActionsMacro.self,
     ]
 }
