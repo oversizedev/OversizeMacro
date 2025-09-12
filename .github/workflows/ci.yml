@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - "*.*.*"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  tests:
+    name: Tests
+    if:  github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
+    uses: oversizedev/GithubWorkflows/.github/workflows/test.yml@main
+    secrets: inherit
+
+  build-oversize-macro:
+    name: Build OversizeMacro
+    needs:
+      - tests
+    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm-all-platforms.yml@main
+    with:
+      package: OversizeMacro
+    secrets: inherit
+
+  build-oversize-macro-client:
+    name: Build OversizeMacroClient
+    needs:
+      - tests
+    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm-all-platforms.yml@main
+    with:
+      package: OversizeMacroClient
+    secrets: inherit
+
+  bump:
+    name: Bump version
+    needs:
+      - build-oversize-macro
+      - build-oversize-macro-client
+    if: github.ref == 'refs/heads/main'
+    uses: oversizedev/GithubWorkflows/.github/workflows/bump.yml@main
+    secrets: inherit
+
+  release:
+    name: Create Release
+    if: github.ref != 'refs/heads/main' && startsWith(github.ref, 'refs/tags/')
+    uses: oversizedev/GithubWorkflows/.github/workflows/release.yml@main
+    secrets: inherit

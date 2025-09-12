@@ -1,8 +1,10 @@
 import OversizeMacro
 
-let a = 17
-let b = 25
+@AutoRoutable
+enum Screens {
+    case meta
+    case instagram
+    case twitter
+}
 
-let (result, code) = #stringify(a + b)
-
-print("The value \(result) was produced by the code \"\(code)\"")
+print(Screens.meta.id)
