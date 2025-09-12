@@ -27,7 +27,7 @@ jobs:
     uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm.yml@main
     with:
       package: OversizeMacro
-      destination: platform=macOS,name=Any Mac
+      destination: platform=macOS,arch=arm64
     secrets: inherit
 
   build-oversize-macro-client:
@@ -37,7 +37,7 @@ jobs:
     uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm.yml@main
     with:
       package: OversizeMacroClient
-      destination: platform=macOS,name=Any Mac
+      destination: platform=macOS,arch=arm64
     secrets: inherit
 
   bump:
