@@ -24,18 +24,20 @@ jobs:
     name: Build OversizeMacro
     needs:
       - tests
-    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm-all-platforms.yml@main
+    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm.yml@main
     with:
       package: OversizeMacro
+      destination: platform=macOS,name=Any Mac
     secrets: inherit
 
   build-oversize-macro-client:
     name: Build OversizeMacroClient
     needs:
       - tests
-    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm-all-platforms.yml@main
+    uses: oversizedev/GithubWorkflows/.github/workflows/build-swiftpm.yml@main
     with:
       package: OversizeMacroClient
+      destination: platform=macOS,name=Any Mac
     secrets: inherit
 
   bump:
