@@ -5,16 +5,16 @@ public struct AutoRoutableMacro: MemberMacro {
     public static func expansion<Declaration: DeclGroupSyntax, Context: MacroExpansionContext>(
         of node: AttributeSyntax,
         providingMembersOf declaration: Declaration,
-        conformingTo _: [TypeSyntax],
+        conformingTo protocols: [TypeSyntax],
         in context: Context
     ) throws -> [DeclSyntax] {
         try expansion(of: node, providingMembersOf: declaration, in: context)
     }
 
     public static func expansion<Declaration: DeclGroupSyntax, Context: MacroExpansionContext>(
-        of _: AttributeSyntax,
+        of node: AttributeSyntax,
         providingMembersOf declaration: Declaration,
-        in _: Context
+        in context: Context
     ) throws -> [DeclSyntax] {
         let caseNames: [String] = declaration.memberBlock.members
             .compactMap { $0.decl.as(EnumCaseDeclSyntax.self) }
