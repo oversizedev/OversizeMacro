@@ -16,15 +16,15 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        
         guard let declGroup = declaration.as(ClassDeclSyntax.self) as (any DeclGroupSyntax)? ??
-            declaration.as(ActorDeclSyntax.self) as (any DeclGroupSyntax)? else {
+            declaration.as(ActorDeclSyntax.self) as (any DeclGroupSyntax)?
+        else {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
-        
+
         let onMethods = extractOnMethods(from: declGroup)
         let actionCases = generateActionCases(from: onMethods)
-        
+
         let actionEnum = EnumDeclSyntax(
             modifiers: DeclModifierListSyntax {
                 DeclModifierSyntax(name: .keyword(.public))
@@ -38,68 +38,68 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 MemberBlockItemSyntax(decl: actionCase)
             }
         }
-        
+
         let extensionDecl = ExtensionDeclSyntax(
             extendedType: type,
             memberBlock: MemberBlockSyntax {
                 MemberBlockItemSyntax(decl: actionEnum)
             }
         )
-        
+
         return [extensionDecl]
     }
-    
+
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        
         guard let declGroup = declaration.as(ClassDeclSyntax.self) as (any DeclGroupSyntax)? ??
-            declaration.as(ActorDeclSyntax.self) as (any DeclGroupSyntax)? else {
+            declaration.as(ActorDeclSyntax.self) as (any DeclGroupSyntax)?
+        else {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
-        
+
         let onMethods = extractOnMethods(from: declGroup)
         let handleActionMethod = generateHandleActionMethod(from: onMethods)
-        
+
         return [DeclSyntax(handleActionMethod)]
     }
-    
+
     private static func extractOnMethods(from declaration: some DeclGroupSyntax) -> [FunctionDeclSyntax] {
-        return declaration.memberBlock.members.compactMap { member in
+        declaration.memberBlock.members.compactMap { member in
             guard let function = member.decl.as(FunctionDeclSyntax.self),
                   function.name.text.hasPrefix("on"),
-                  !function.modifiers.contains(where: { $0.name.tokenKind == .keyword(.private) }) else {
+                  !function.modifiers.contains(where: { $0.name.tokenKind == .keyword(.private) })
+            else {
                 return nil
             }
             return function
         }
     }
-    
+
     private static func generateActionCases(from methods: [FunctionDeclSyntax]) -> [EnumCaseDeclSyntax] {
-        return methods.compactMap { method in
+        methods.compactMap { method in
             let methodName = method.name.text
             let caseName = methodName
-            
+
             let caseElement: EnumCaseElementSyntax
-            
+
             if method.signature.parameterClause.parameters.isEmpty {
                 caseElement = EnumCaseElementSyntax(name: TokenSyntax.identifier(caseName))
             } else {
                 let parameters = method.signature.parameterClause.parameters
-                
+
                 var enumParameters: [EnumCaseParameterSyntax] = []
-                
+
                 for (index, param) in parameters.enumerated() {
                     let labelText = param.firstName.text
-                    
-                    let enumParam: EnumCaseParameterSyntax
-                    if labelText == "_" {
-                        enumParam = EnumCaseParameterSyntax(type: param.type)
+
+                    let enumParam = if labelText == "_" {
+                        EnumCaseParameterSyntax(type: param.type)
                     } else {
-                        enumParam = EnumCaseParameterSyntax(
+                        EnumCaseParameterSyntax(
                             firstName: TokenSyntax.identifier(labelText),
                             colon: .colonToken(),
                             type: param.type
@@ -112,7 +112,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                         enumParameters.append(enumParam)
                     }
                 }
-                
+
                 caseElement = EnumCaseElementSyntax(
                     name: TokenSyntax.identifier(caseName),
                     parameterClause: EnumCaseParameterClauseSyntax(
@@ -120,7 +120,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                     )
                 )
             }
-            
+
             return EnumCaseDeclSyntax(
                 elements: EnumCaseElementListSyntax {
                     caseElement
@@ -128,7 +128,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             )
         }
     }
-    
+
     private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax]) -> FunctionDeclSyntax {
         if methods.isEmpty {
             return try! FunctionDeclSyntax(
@@ -138,22 +138,22 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 """
             )
         }
-        
+
         var caseStatements: [String] = []
-        
+
         for method in methods {
             let methodName = method.name.text
             let caseName = methodName
-            
+
             if method.signature.parameterClause.parameters.isEmpty {
                 caseStatements.append("case .\(caseName):")
                 caseStatements.append("    await \(methodName)()")
             } else {
                 let parameters = method.signature.parameterClause.parameters
-                
+
                 var caseParams: [String] = []
                 var callArgs: [String] = []
-                
+
                 for param in parameters {
                     let firstName = param.firstName.text
                     if firstName == "_" {
@@ -165,17 +165,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                         callArgs.append(firstName)
                     }
                 }
-                
+
                 let casePattern = caseParams.joined(separator: ", ")
                 let callPattern = callArgs.joined(separator: ", ")
-                
+
                 caseStatements.append("case .\(caseName)(\(casePattern)):")
                 caseStatements.append("    await \(methodName)(\(callPattern))")
             }
         }
-        
+
         let switchBody = caseStatements.joined(separator: "\n    ")
-        
+
         return try! FunctionDeclSyntax(
             """
             public func handleAction(_ action: Action) async {
@@ -190,11 +190,11 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
 enum ViewModelMacroError: Error, CustomStringConvertible {
     case onlyApplicableToClassOrActor
-    
+
     var description: String {
         switch self {
         case .onlyApplicableToClassOrActor:
-            return "@ViewModelMacro can only be applied to classes or actors"
+            "@ViewModelMacro can only be applied to classes or actors"
         }
     }
 }

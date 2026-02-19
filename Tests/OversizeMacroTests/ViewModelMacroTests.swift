@@ -14,17 +14,17 @@ final class ViewModelMacroTests: XCTestCase {
         "ViewModelMacro": ViewModelMacro.self,
     ]
 
-    func testSimpleOnMethodsGenerateActions() throws {
+    func testSimpleOnMethodsGenerateActions() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onTapSave() async {}
                 func onDisappear() async {}
@@ -33,11 +33,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onTapSave() async {}
                 func onDisappear() async {}
@@ -66,17 +66,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testOnMethodsWithParametersGenerateActionsWithAssociatedValues() throws {
+    func testOnMethodsWithParametersGenerateActionsWithAssociatedValues() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onNameChanged(name: String) async {}
                 func onValueChanged(_ value: Int) async {}
                 func onFocusField(_ field: TestViewState.FocusField?) async {}
@@ -86,11 +86,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onNameChanged(name: String) async {}
                 func onValueChanged(_ value: Int) async {}
                 func onFocusField(_ field: TestViewState.FocusField?) async {}
@@ -123,17 +123,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testPrivateOnMethodsAreIgnored() throws {
+    func testPrivateOnMethodsAreIgnored() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 private func onPrivateMethod() async {}
                 func onSave() async {}
@@ -142,11 +142,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 private func onPrivateMethod() async {}
                 func onSave() async {}
@@ -172,17 +172,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testNonOnMethodsAreIgnored() throws {
+    func testNonOnMethodsAreIgnored() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func handleAction(_ action: Action) async {}
                 func save() async {}
@@ -192,11 +192,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func handleAction(_ action: Action) async {}
                 func save() async {}
@@ -220,17 +220,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testClassSupport() throws {
+    func testClassSupport() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public class TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onSave() async {}
             }
@@ -238,11 +238,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public class TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onSave() async {}
 
@@ -267,17 +267,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testEmptyActorGeneratesEmptyEnum() throws {
+    func testEmptyActorGeneratesEmptyEnum() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func save() async {}
                 func load() async {}
             }
@@ -285,11 +285,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func save() async {}
                 func load() async {}
 
@@ -306,7 +306,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testMacroOnlyAppliesToClassAndActor() throws {
+    func testMacroOnlyAppliesToClassAndActor() {
         assertMacroExpansion(
             """
             @ViewModelMacro
@@ -327,17 +327,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testComplexParameterLabels() throws {
+    func testComplexParameterLabels() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onSet(value newValue: String) async {}
                 func onUpdate(at index: Int, with value: String) async {}
             }
@@ -345,11 +345,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onSet(value newValue: String) async {}
                 func onUpdate(at index: Int, with value: String) async {}
 
@@ -374,17 +374,17 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testRealWorldExample() throws {
+    func testRealWorldExample() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor MealProductCategoryEditViewModel: ViewModelProtocol {
                 public var state: MealProductCategoryEditViewState
-                
+
                 public init(state: MealProductCategoryEditViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onTapSave() async {}
                 func onFocusField(_ field: MealProductCategoryEditViewState.FocusField?) async {}
@@ -397,11 +397,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor MealProductCategoryEditViewModel: ViewModelProtocol {
                 public var state: MealProductCategoryEditViewState
-                
+
                 public init(state: MealProductCategoryEditViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onTapSave() async {}
                 func onFocusField(_ field: MealProductCategoryEditViewState.FocusField?) async {}
@@ -442,18 +442,18 @@ final class ViewModelMacroTests: XCTestCase {
             macros: testMacros
         )
     }
-    
-    func testHandleActionMethodGeneration() throws {
+
+    func testHandleActionMethodGeneration() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onSave(name: String) async {}
                 func onDelete(_ id: UUID) async {}
@@ -462,11 +462,11 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor TestViewModel: ViewModelProtocol {
                 public var state: TestViewState
-                
+
                 public init(state: TestViewState) {
                     self.state = state
                 }
-                
+
                 func onAppear() async {}
                 func onSave(name: String) async {}
                 func onDelete(_ id: UUID) async {}
@@ -495,13 +495,13 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testEmptyViewModelHandleAction() throws {
+    func testEmptyViewModelHandleAction() {
         assertMacroExpansion(
             """
             @ViewModelMacro
             public actor EmptyViewModel: ViewModelProtocol {
                 public var state: EmptyViewState
-                
+
                 public init(state: EmptyViewState) {
                     self.state = state
                 }
@@ -510,7 +510,7 @@ final class ViewModelMacroTests: XCTestCase {
             expandedSource: """
             public actor EmptyViewModel: ViewModelProtocol {
                 public var state: EmptyViewState
-                
+
                 public init(state: EmptyViewState) {
                     self.state = state
                 }
