@@ -193,6 +193,26 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     }
 
     private static func sanitizedEnumCaseType(_ type: TypeSyntax) -> TypeSyntax {
+        if let optional = type.as(OptionalTypeSyntax.self) {
+            return TypeSyntax(optional.with(\.wrappedType, sanitizedEnumCaseType(optional.wrappedType)))
+        }
+        if let iuo = type.as(ImplicitlyUnwrappedOptionalTypeSyntax.self) {
+            return TypeSyntax(iuo.with(\.wrappedType, sanitizedEnumCaseType(iuo.wrappedType)))
+        }
+        if let array = type.as(ArrayTypeSyntax.self) {
+            return TypeSyntax(array.with(\.element, sanitizedEnumCaseType(array.element)))
+        }
+        if let dict = type.as(DictionaryTypeSyntax.self) {
+            return TypeSyntax(dict
+                .with(\.key, sanitizedEnumCaseType(dict.key))
+                .with(\.value, sanitizedEnumCaseType(dict.value)))
+        }
+        if let tuple = type.as(TupleTypeSyntax.self) {
+            let newElements = tuple.elements.map { el in
+                el.with(\.type, sanitizedEnumCaseType(el.type))
+            }
+            return TypeSyntax(tuple.with(\.elements, TupleTypeElementListSyntax(newElements)))
+        }
         if type.is(FunctionTypeSyntax.self) {
             return TypeSyntax("@Sendable \(raw: type.trimmedDescription)")
         }

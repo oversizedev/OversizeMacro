@@ -1355,6 +1355,132 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
+    func testOptionalClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: (() -> Void)?) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: (() -> Void)?) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(cb):
+                        await onDone(cb)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone((@Sendable () -> Void)?)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testArrayClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cbs: [() -> Void]) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cbs: [() -> Void]) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(cbs):
+                        await onDone(cbs)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone([@Sendable () -> Void])
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testTupleClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ pair: (String, () -> Void)) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ pair: (String, () -> Void)) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(pair):
+                        await onDone(pair)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone((String, @Sendable () -> Void))
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
     func testPublicActorWithPublicMethodsStaysPublic() {
         assertMacroExpansion(
             """
