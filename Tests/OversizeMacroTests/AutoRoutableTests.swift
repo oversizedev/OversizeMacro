@@ -11,7 +11,7 @@ final class AutoRoutableMacroExpansionTests: XCTestCase {
         "AutoRoutable": AutoRoutableMacro.self,
     ]
 
-    func testExpansion_basic() throws {
+    func testExpansion_basic() {
         assertMacroExpansion(
             """
             @AutoRoutable
@@ -48,7 +48,7 @@ final class AutoRoutableMacroExpansionTests: XCTestCase {
         )
     }
 
-    func testExpansion_multipleElementsInOneLine() throws {
+    func testExpansion_multipleElementsInOneLine() {
         assertMacroExpansion(
             """
             @AutoRoutable

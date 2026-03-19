@@ -2,19 +2,19 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 
 public struct AutoRoutableMacro: MemberMacro {
-    public static func expansion<Declaration: DeclGroupSyntax, Context: MacroExpansionContext>(
+    public static func expansion(
         of node: AttributeSyntax,
-        providingMembersOf declaration: Declaration,
-        conformingTo _: [TypeSyntax],
-        in context: Context
+        providingMembersOf declaration: some DeclGroupSyntax,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         try expansion(of: node, providingMembersOf: declaration, in: context)
     }
 
-    public static func expansion<Declaration: DeclGroupSyntax, Context: MacroExpansionContext>(
-        of _: AttributeSyntax,
-        providingMembersOf declaration: Declaration,
-        in _: Context
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingMembersOf declaration: some DeclGroupSyntax,
+        in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         let caseNames: [String] = declaration.memberBlock.members
             .compactMap { $0.decl.as(EnumCaseDeclSyntax.self) }
