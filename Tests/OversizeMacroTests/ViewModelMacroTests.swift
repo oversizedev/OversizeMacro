@@ -99,13 +99,13 @@ final class ViewModelMacroTests: XCTestCase {
                 public func handleAction(_ action: Action) async {
                     switch action {
                     case .onNameChanged(name):
-                        await onNameChanged(name)
+                        await onNameChanged(name: name)
                     case .onValueChanged(value):
                         await onValueChanged(value)
                     case .onFocusField(field):
                         await onFocusField(field)
                     case .onUpdateData(id, name):
-                        await onUpdateData(id, name)
+                        await onUpdateData(id: id, name: name)
                     }
                 }
             }
@@ -201,13 +201,6 @@ final class ViewModelMacroTests: XCTestCase {
                 func handleAction(_ action: Action) async {}
                 func save() async {}
                 func load() async {}
-
-                public func handleAction(_ action: Action) async {
-                    switch action {
-                    case .onAppear:
-                        await onAppear()
-                    }
-                }
             }
 
             extension TestViewModel {
@@ -355,10 +348,10 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public func handleAction(_ action: Action) async {
                     switch action {
-                    case .onSet(value):
-                        await onSet(value)
-                    case .onUpdate(at, with):
-                        await onUpdate(at, with)
+                    case .onSet(newValue):
+                        await onSet(value: newValue)
+                    case .onUpdate(index, value):
+                        await onUpdate(at: index, with: value)
                     }
                 }
             }
@@ -419,11 +412,11 @@ final class ViewModelMacroTests: XCTestCase {
                     case .onFocusField(field):
                         await onFocusField(field)
                     case .onNameChanged(name):
-                        await onNameChanged(name)
+                        await onNameChanged(name: name)
                     case .onNoteChanged(note):
-                        await onNoteChanged(note)
+                        await onNoteChanged(note: note)
                     case .onUrlChanged(url):
-                        await onUrlChanged(url)
+                        await onUrlChanged(url: url)
                     }
                 }
             }
@@ -476,7 +469,7 @@ final class ViewModelMacroTests: XCTestCase {
                     case .onAppear:
                         await onAppear()
                     case .onSave(name):
-                        await onSave(name)
+                        await onSave(name: name)
                     case .onDelete(id):
                         await onDelete(id)
                     }
@@ -521,6 +514,176 @@ final class ViewModelMacroTests: XCTestCase {
 
             extension EmptyViewModel {
                 public enum Action: Sendable {
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testInternalClassHasNoPublicModifier() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            class TestViewModel: ViewModelProtocol {
+                var state: TestViewState
+
+                init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave() async {}
+            }
+            """,
+            expandedSource: """
+            class TestViewModel: ViewModelProtocol {
+                var state: TestViewState
+
+                init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave() async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onSave:
+                        await onSave()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                    case onSave
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testOpenClassMapsToPublicModifier() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            open class TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+            }
+            """,
+            expandedSource: """
+            open class TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testUnrelatedHandleActionOverloadDoesNotSuppressGeneration() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func handleAction() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func handleAction() async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testExistingHandleActionIsNotDuplicated() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func handleAction(_ action: Action) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func handleAction(_ action: Action) async {}
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
                 }
             }
             """,

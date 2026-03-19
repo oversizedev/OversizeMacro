@@ -26,9 +26,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         let actionCases = generateActionCases(from: onMethods)
 
         let actionEnum = EnumDeclSyntax(
-            modifiers: DeclModifierListSyntax {
-                DeclModifierSyntax(name: .keyword(.public))
-            },
+            modifiers: enumModifiers(from: declGroup),
             name: "Action",
             inheritanceClause: InheritanceClauseSyntax {
                 InheritedTypeSyntax(type: IdentifierTypeSyntax(name: "Sendable"))
@@ -61,8 +59,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
 
+        let alreadyExists = declGroup.memberBlock.members.contains {
+            guard let fn = $0.decl.as(FunctionDeclSyntax.self),
+                  fn.name.text == "handleAction" else { return false }
+            let params = fn.signature.parameterClause.parameters
+            return params.count == 1 && params.first?.firstName.text == "_"
+        }
+        guard !alreadyExists else { return [] }
+
+        let access = accessModifier(from: declGroup)
         let onMethods = extractOnMethods(from: declGroup)
-        let handleActionMethod = generateHandleActionMethod(from: onMethods)
+        let handleActionMethod = generateHandleActionMethod(from: onMethods, access: access)
 
         return [DeclSyntax(handleActionMethod)]
     }
@@ -129,11 +136,12 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
     }
 
-    private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax]) -> FunctionDeclSyntax {
+    private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax], access: String) -> FunctionDeclSyntax {
+        let accessPrefix = access.isEmpty ? "" : "\(access) "
         if methods.isEmpty {
             return try! FunctionDeclSyntax(
                 """
-                public func handleAction(_ action: Action) async {
+                \(raw: accessPrefix)func handleAction(_ action: Action) async {
                 }
                 """
             )
@@ -157,12 +165,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 for param in parameters {
                     let firstName = param.firstName.text
                     if firstName == "_" {
-                        let paramName = param.secondName?.text ?? "value"
-                        caseParams.append(paramName)
-                        callArgs.append(paramName)
+                        let varName = param.secondName?.text ?? "value"
+                        caseParams.append(varName)
+                        callArgs.append(varName)
                     } else {
-                        caseParams.append(firstName)
-                        callArgs.append(firstName)
+                        let varName = param.secondName?.text ?? firstName
+                        caseParams.append(varName)
+                        callArgs.append("\(firstName): \(varName)")
                     }
                 }
 
@@ -178,13 +187,38 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
         return try! FunctionDeclSyntax(
             """
-            public func handleAction(_ action: Action) async {
+            \(raw: accessPrefix)func handleAction(_ action: Action) async {
                 switch action {
                 \(raw: switchBody)
                 }
             }
             """
         )
+    }
+
+    private static func accessModifier(from decl: some DeclGroupSyntax) -> String {
+        let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
+        for mod in decl.modifiers {
+            if case .keyword(let kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
+                // open is valid for class members but map to public for clarity
+                return kw == .open ? "public" : mod.name.text
+            }
+        }
+        return ""
+    }
+
+    private static func enumModifiers(from decl: some DeclGroupSyntax) -> DeclModifierListSyntax {
+        let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
+        for mod in decl.modifiers {
+            if case .keyword(let kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
+                // open is not valid on enums — cap at public
+                let name: TokenSyntax = kw == .open ? .keyword(.public) : mod.name
+                return DeclModifierListSyntax {
+                    DeclModifierSyntax(name: name.with(\.trailingTrivia, .space))
+                }
+            }
+        }
+        return DeclModifierListSyntax()
     }
 }
 
