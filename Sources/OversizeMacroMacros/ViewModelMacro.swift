@@ -191,6 +191,9 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     }
 
     private static func sanitizedEnumCaseType(_ type: TypeSyntax) -> TypeSyntax {
+        if type.is(FunctionTypeSyntax.self) {
+            return TypeSyntax("@Sendable \(raw: type.trimmedDescription)")
+        }
         guard let attributed = type.as(AttributedTypeSyntax.self) else { return type }
         let keptAttributes: AttributeListSyntax = attributed.attributes.filter {
             guard case let .attribute(attr) = $0,
@@ -253,7 +256,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                         caseParams.append(varName)
                         callArgs.append(varName)
                     } else {
-                        let varName = param.secondName?.text ?? firstName
+                        let rawSecond = param.secondName?.text
+                        let varName = (rawSecond == nil || rawSecond == "_") ? firstName : rawSecond!
                         caseParams.append(varName)
                         callArgs.append("\(firstName): \(varName)")
                     }

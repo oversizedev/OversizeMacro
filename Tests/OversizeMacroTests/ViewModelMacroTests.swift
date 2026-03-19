@@ -735,6 +735,90 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
+    func testDiscardSecondNameProducesValidBinding() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onSave(name _: String) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onSave(name _: String) async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onSave(name):
+                        await onSave(name: name)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onSave(name: String)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testPlainFunctionTypeParamBecomesAtSendableInEnumCase() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onComplete(_ done: () -> Void) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onComplete(_ done: () -> Void) async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onComplete(done):
+                        await onComplete(done)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onComplete(@Sendable () -> Void)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
     func testOverloadedOnMethodsEmitDiagnostics() {
         assertMacroExpansion(
             """
