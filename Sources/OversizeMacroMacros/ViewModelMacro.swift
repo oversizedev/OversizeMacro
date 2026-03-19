@@ -30,9 +30,10 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
         let onMethods = filteredOnMethods(from: extractOnMethods(from: declGroup))
         let actionCases = generateActionCases(from: onMethods)
+        let effectiveRank = effectiveAccessRank(typeRank: accessRank(ofDecl: declGroup), methods: onMethods)
 
         let actionEnum = EnumDeclSyntax(
-            modifiers: enumModifiers(from: declGroup),
+            modifiers: enumModifiers(forRank: effectiveRank),
             name: "Action",
             inheritanceClause: InheritanceClauseSyntax {
                 InheritedTypeSyntax(type: IdentifierTypeSyntax(name: "Sendable"))
@@ -70,7 +71,6 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
         guard !actionEnumExists else { return [] }
 
-        let access = accessModifier(from: declGroup)
         let rawMethods = extractOnMethods(from: declGroup)
         let nameCounts = Dictionary(grouping: rawMethods, by: \.name.text)
         for (_, methods) in nameCounts where methods.count > 1 {
@@ -102,6 +102,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         guard !alreadyExists else { return [] }
 
         let onMethods = filteredOnMethods(from: rawMethods)
+        let effectiveRank = effectiveAccessRank(typeRank: accessRank(ofDecl: declGroup), methods: onMethods)
+        let access = accessKeyword(forRank: effectiveRank)
         let handleActionMethod = generateHandleActionMethod(from: onMethods, access: access)
 
         return [DeclSyntax(handleActionMethod)]
@@ -284,28 +286,61 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         )
     }
 
-    private static func accessModifier(from decl: some DeclGroupSyntax) -> String {
-        let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
+    // MARK: - Access Level Helpers
+
+    private static func accessRank(ofDecl decl: some DeclGroupSyntax) -> Int {
         for mod in decl.modifiers {
-            if case let .keyword(kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
-                return mod.name.text
+            if case let .keyword(kw) = mod.name.tokenKind {
+                if let rank = keywordRank[kw] { return rank }
             }
         }
-        return ""
+        return 2
     }
 
-    private static func enumModifiers(from decl: some DeclGroupSyntax) -> DeclModifierListSyntax {
-        let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
-        for mod in decl.modifiers {
-            if case let .keyword(kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
-                // open is not valid on enums — cap at public
-                let name: TokenSyntax = kw == .open ? .keyword(.public) : mod.name
-                return DeclModifierListSyntax {
-                    DeclModifierSyntax(name: name.with(\.trailingTrivia, .space))
-                }
+    private static func accessRank(ofMethod fn: FunctionDeclSyntax) -> Int {
+        for mod in fn.modifiers {
+            if case let .keyword(kw) = mod.name.tokenKind {
+                if let rank = keywordRank[kw] { return rank }
             }
         }
-        return DeclModifierListSyntax()
+        return 2
+    }
+
+    private static let keywordRank: [Keyword: Int] = [
+        .private: 0, .fileprivate: 1, .internal: 2,
+        .package: 3, .public: 4, .open: 5,
+    ]
+
+    private static func effectiveAccessRank(typeRank: Int, methods: [FunctionDeclSyntax]) -> Int {
+        guard !methods.isEmpty else { return typeRank }
+        let minMethodRank = methods.map { accessRank(ofMethod: $0) }.min() ?? typeRank
+        return min(typeRank, minMethodRank)
+    }
+
+    private static func accessKeyword(forRank rank: Int) -> String {
+        switch rank {
+        case 0: "private"
+        case 1: "fileprivate"
+        case 3: "package"
+        case 4: "public"
+        case 5: "open"
+        default: ""
+        }
+    }
+
+    private static func enumModifiers(forRank rank: Int) -> DeclModifierListSyntax {
+        let cappedRank = min(rank, 4)
+        guard cappedRank != 2 else { return DeclModifierListSyntax() }
+        let token: TokenSyntax = switch cappedRank {
+        case 0: .keyword(.private)
+        case 1: .keyword(.fileprivate)
+        case 3: .keyword(.package)
+        case 4: .keyword(.public)
+        default: .keyword(.internal)
+        }
+        return DeclModifierListSyntax {
+            DeclModifierSyntax(name: token.with(\.trailingTrivia, .space))
+        }
     }
 }
 

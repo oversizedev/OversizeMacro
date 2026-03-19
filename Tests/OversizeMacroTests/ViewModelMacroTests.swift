@@ -42,7 +42,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onTapSave() async {}
                 func onDisappear() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -55,7 +55,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                     case onTapSave
                     case onDisappear
@@ -96,7 +96,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onFocusField(_ field: TestViewState.FocusField?) async {}
                 func onUpdateData(id: UUID, name: String) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onNameChanged(name):
                         await onNameChanged(name: name)
@@ -111,7 +111,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onNameChanged(name: String)
                     case onValueChanged(Int)
                     case onFocusField(TestViewState.FocusField?)
@@ -151,7 +151,7 @@ final class ViewModelMacroTests: XCTestCase {
                 private func onPrivateMethod() async {}
                 func onSave() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -162,7 +162,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                     case onSave
                 }
@@ -204,7 +204,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -239,7 +239,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 func onSave() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -250,7 +250,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                     case onSave
                 }
@@ -346,7 +346,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onSet(value newValue: String) async {}
                 func onUpdate(at index: Int, with value: String) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onSet(newValue):
                         await onSet(value: newValue)
@@ -357,7 +357,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onSet(value: String)
                     case onUpdate(at: Int, with: String)
                 }
@@ -403,7 +403,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onUrlChanged(url: URL?) async {}
                 private func updateFormValidation() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -422,7 +422,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension MealProductCategoryEditViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                     case onTapSave
                     case onFocusField(MealProductCategoryEditViewState.FocusField?)
@@ -464,7 +464,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onSave(name: String) async {}
                 func onDelete(_ id: UUID) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -477,7 +477,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                     case onSave(name: String)
                     case onDelete(UUID)
@@ -592,7 +592,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 func onAppear() async {}
 
-                open func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -601,7 +601,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -636,7 +636,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 func handleAction() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -645,7 +645,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -717,7 +717,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 static func onLoad() async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -726,7 +726,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -759,7 +759,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 func onSave(name _: String) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onSave(name):
                         await onSave(name: name)
@@ -768,7 +768,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onSave(name: String)
                 }
             }
@@ -801,7 +801,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 func onComplete(_ done: () -> Void) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onComplete(done):
                         await onComplete(done)
@@ -810,7 +810,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onComplete(@Sendable () -> Void)
                 }
             }
@@ -847,7 +847,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onSave() async {}
                 func onSave(id: UUID) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -856,7 +856,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -907,7 +907,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -942,7 +942,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 func handleAction(_ value: Int) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -951,7 +951,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -986,7 +986,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 static func handleAction(_ action: Action) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -995,7 +995,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -1030,7 +1030,7 @@ final class ViewModelMacroTests: XCTestCase {
                 func onAppear() async {}
                 func handleAction(_ action: Action) {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onAppear:
                         await onAppear()
@@ -1039,7 +1039,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -1072,7 +1072,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 func onComplete(_ done: @escaping () -> Void) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onComplete(done):
                         await onComplete(done)
@@ -1081,7 +1081,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onComplete(@Sendable () -> Void)
                 }
             }
@@ -1188,7 +1188,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 func onComplete(_ done: @MainActor @escaping () -> Void) async {}
 
-                public func handleAction(_ action: Action) async {
+                func handleAction(_ action: Action) async {
                     switch action {
                     case .onComplete(done):
                         await onComplete(done)
@@ -1197,7 +1197,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onComplete(@MainActor @Sendable () -> Void)
                 }
             }
@@ -1238,7 +1238,7 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel {
-                public enum Action: Sendable {
+                enum Action: Sendable {
                     case onAppear
                 }
             }
@@ -1257,6 +1257,147 @@ final class ViewModelMacroTests: XCTestCase {
                     severity: .error
                 ),
             ],
+            macros: testMacros
+        )
+    }
+
+    func testPackageActorGeneratesPackageAccessLevel() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            package actor TestViewModel: ViewModelProtocol {
+                package var state: TestViewState
+
+                package init(state: TestViewState) {
+                    self.state = state
+                }
+
+                package func onAppear() async {}
+                package func onSave() async {}
+            }
+            """,
+            expandedSource: """
+            package actor TestViewModel: ViewModelProtocol {
+                package var state: TestViewState
+
+                package init(state: TestViewState) {
+                    self.state = state
+                }
+
+                package func onAppear() async {}
+                package func onSave() async {}
+
+                package func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onSave:
+                        await onSave()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                package enum Action: Sendable {
+                    case onAppear
+                    case onSave
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testPublicActorWithInternalMethodsCapsToInternal() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave(name: String) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave(name: String) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onSave(name):
+                        await onSave(name: name)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                    case onSave(name: String)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testPublicActorWithPublicMethodsStaysPublic() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                public func onAppear() async {}
+                public func onSave() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                public func onAppear() async {}
+                public func onSave() async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onSave:
+                        await onSave()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
+                    case onSave
+                }
+            }
+            """,
             macros: testMacros
         )
     }
