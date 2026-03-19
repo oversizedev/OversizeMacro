@@ -24,7 +24,11 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
 
         let actionExists = declGroup.memberBlock.members.contains {
-            $0.decl.as(EnumDeclSyntax.self)?.name.text == "Action"
+            if let e = $0.decl.as(EnumDeclSyntax.self) { return e.name.text == "Action" }
+            if let s = $0.decl.as(StructDeclSyntax.self) { return s.name.text == "Action" }
+            if let c = $0.decl.as(ClassDeclSyntax.self) { return c.name.text == "Action" }
+            if let t = $0.decl.as(TypeAliasDeclSyntax.self) { return t.name.text == "Action" }
+            return false
         }
         guard !actionExists else { return [] }
 
@@ -114,7 +118,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                           $0.name.tokenKind == .keyword(.class)
                   }),
                   !function.signature.parameterClause.parameters.contains(where: hasSpecifierParam(_:)),
-                  !function.signature.parameterClause.parameters.contains(where: { $0.ellipsis != nil })
+                  !function.signature.parameterClause.parameters.contains(where: { $0.ellipsis != nil }),
+                  function.genericParameterClause == nil
             else {
                 return nil
             }
@@ -188,6 +193,14 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
     }
 
+    private static func sanitizedGenericArguments(_ arguments: GenericArgumentListSyntax) -> [GenericArgumentSyntax] {
+        arguments.map { arg -> GenericArgumentSyntax in
+            guard case let .type(argType) = arg.argument else { return arg }
+            let sanitized = sanitizedEnumCaseType(argType)
+            return arg.with(\.argument, .type(sanitized))
+        }
+    }
+
     private static func sanitizedEnumCaseType(_ type: TypeSyntax) -> TypeSyntax {
         if let optional = type.as(OptionalTypeSyntax.self) {
             return TypeSyntax(optional.with(\.wrappedType, sanitizedEnumCaseType(optional.wrappedType)))
@@ -212,13 +225,16 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         if let ident = type.as(IdentifierTypeSyntax.self),
            let genericClause = ident.genericArgumentClause
         {
-            let newArgs = genericClause.arguments.map { arg -> GenericArgumentSyntax in
-                guard case let .type(argType) = arg.argument else { return arg }
-                let sanitized = sanitizedEnumCaseType(argType)
-                return arg.with(\.argument, .type(sanitized))
-            }
+            let newArgs = sanitizedGenericArguments(genericClause.arguments)
             let newClause = genericClause.with(\.arguments, GenericArgumentListSyntax(newArgs))
             return TypeSyntax(ident.with(\.genericArgumentClause, newClause))
+        }
+        if let member = type.as(MemberTypeSyntax.self),
+           let genericClause = member.genericArgumentClause
+        {
+            let newArgs = sanitizedGenericArguments(genericClause.arguments)
+            let newClause = genericClause.with(\.arguments, GenericArgumentListSyntax(newArgs))
+            return TypeSyntax(member.with(\.genericArgumentClause, newClause))
         }
         if type.is(FunctionTypeSyntax.self) {
             return TypeSyntax("@Sendable \(raw: type.trimmedDescription)")
@@ -230,14 +246,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             else { return true }
             return ident.name.text != "escaping"
         }
-        let hadEscaping = keptAttributes.count < attributed.attributes.count
         let hasSendable = keptAttributes.contains {
             guard case let .attribute(attr) = $0,
                   let ident = attr.attributeName.as(IdentifierTypeSyntax.self)
             else { return false }
             return ident.name.text == "Sendable"
         }
-        if hadEscaping, !hasSendable, attributed.baseType.is(FunctionTypeSyntax.self) {
+        if !hasSendable, attributed.baseType.is(FunctionTypeSyntax.self) {
             let otherAttrs = keptAttributes.map(\.trimmedDescription).joined(separator: " ")
             let prefix = otherAttrs.isEmpty ? "@Sendable " : "\(otherAttrs) @Sendable "
             let base = attributed.baseType.trimmedDescription
@@ -302,10 +317,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 var caseParams: [String] = []
                 var callArgs: [String] = []
 
+                var unnamedIndex = 0
                 for param in parameters {
                     let firstName = param.firstName.text
                     if firstName == "_" {
-                        let varName = param.secondName?.text ?? "value"
+                        let varName: String
+                        if let second = param.secondName?.text {
+                            varName = second
+                        } else {
+                            varName = "value\(unnamedIndex)"
+                            unnamedIndex += 1
+                        }
                         caseParams.append(varName)
                         callArgs.append(varName)
                     } else {

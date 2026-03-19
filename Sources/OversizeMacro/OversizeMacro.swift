@@ -1,4 +1,4 @@
-@attached(extension, conformances: Sendable, names: named(Action))
+@attached(extension, names: named(Action))
 @attached(member, names: named(handleAction))
 public macro ViewModel() = #externalMacro(module: "OversizeMacroMacros", type: "ViewModelMacro")
 

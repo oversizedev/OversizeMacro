@@ -1845,4 +1845,296 @@ final class ViewModelMacroTests: XCTestCase {
             macros: testMacros
         )
     }
+
+    func testGenericOnMethodExcludedFromSynthesis() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSelect<T>(_ value: T) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSelect<T>(_ value: T) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testMultipleUnlabeledParamsGetUniqueBindings() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onMove(_ x: Int, _ y: Int) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onMove(_ x: Int, _ y: Int) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onMove(x, y):
+                        await onMove(x, y)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onMove(Int, Int)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testMultipleUnlabeledParamsWithoutSecondNameGetUniqueBindings() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onPair(_ : Int, _ : Int) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onPair(_ : Int, _ : Int) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onPair(value0, value1):
+                        await onPair(value0, value1)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onPair(Int, Int)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testTypealiasActionSkipsExtension() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                typealias Action = CustomAction
+
+                func onAppear() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                typealias Action = CustomAction
+
+                func onAppear() async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testStructActionSkipsExtension() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                struct Action {}
+
+                func onAppear() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                struct Action {}
+
+                func onAppear() async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testMainActorClosureWithoutEscapingGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onComplete(_ done: @MainActor () -> Void) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onComplete(_ done: @MainActor () -> Void) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onComplete(done):
+                        await onComplete(done)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onComplete(@MainActor @Sendable () -> Void)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testQualifiedGenericClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Swift.Optional<() -> Void>) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Swift.Optional<() -> Void>) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(cb):
+                        await onDone(cb)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone(Swift.Optional<@Sendable () -> Void>)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
 }
