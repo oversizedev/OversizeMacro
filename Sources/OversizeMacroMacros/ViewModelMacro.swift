@@ -70,14 +70,6 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
         guard !actionEnumExists else { return [] }
 
-        let alreadyExists = declGroup.memberBlock.members.contains {
-            guard let fn = $0.decl.as(FunctionDeclSyntax.self),
-                  fn.name.text == "handleAction" else { return false }
-            let params = fn.signature.parameterClause.parameters
-            return params.count == 1 && params.first?.firstName.text == "_"
-        }
-        guard !alreadyExists else { return [] }
-
         let access = accessModifier(from: declGroup)
         let rawMethods = extractOnMethods(from: declGroup)
         let nameCounts = Dictionary(grouping: rawMethods, by: \.name.text)
@@ -86,6 +78,23 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 context.diagnose(Diagnostic(node: method, message: ViewModelMacroDiagnostic.overloadedOnMethod(method.name.text)))
             }
         }
+
+        let typeName = (declGroup as? ClassDeclSyntax)?.name.text
+            ?? (declGroup as? ActorDeclSyntax)?.name.text
+            ?? ""
+        let alreadyExists = declGroup.memberBlock.members.contains {
+            guard let fn = $0.decl.as(FunctionDeclSyntax.self),
+                  fn.name.text == "handleAction" else { return false }
+            let params = fn.signature.parameterClause.parameters
+            guard params.count == 1, params.first?.firstName.text == "_" else { return false }
+            let typeDesc = params.first?.type.trimmedDescription ?? ""
+            return typeDesc == "Action"
+                || typeDesc == "Self.Action"
+                || typeDesc == "\(typeName).Action"
+                || (typeDesc.hasPrefix("\(typeName)<") && typeDesc.hasSuffix(".Action"))
+        }
+        guard !alreadyExists else { return [] }
+
         let onMethods = filteredOnMethods(from: rawMethods)
         let handleActionMethod = generateHandleActionMethod(from: onMethods, access: access)
 
@@ -226,7 +235,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static func accessModifier(from decl: some DeclGroupSyntax) -> String {
         let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
         for mod in decl.modifiers {
-            if case .keyword(let kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
+            if case let .keyword(kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
                 // open is valid for class members but map to public for clarity
                 return kw == .open ? "public" : mod.name.text
             }
@@ -237,7 +246,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static func enumModifiers(from decl: some DeclGroupSyntax) -> DeclModifierListSyntax {
         let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
         for mod in decl.modifiers {
-            if case .keyword(let kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
+            if case let .keyword(kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
                 // open is not valid on enums — cap at public
                 let name: TokenSyntax = kw == .open ? .keyword(.public) : mod.name
                 return DeclModifierListSyntax {
