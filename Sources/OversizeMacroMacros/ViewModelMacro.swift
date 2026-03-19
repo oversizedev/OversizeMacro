@@ -66,11 +66,6 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
 
-        let actionEnumExists = declGroup.memberBlock.members.contains {
-            $0.decl.as(EnumDeclSyntax.self)?.name.text == "Action"
-        }
-        guard !actionEnumExists else { return [] }
-
         let rawMethods = extractOnMethods(from: declGroup)
         let nameCounts = Dictionary(grouping: rawMethods, by: \.name.text)
         for (_, methods) in nameCounts where methods.count > 1 {
@@ -87,7 +82,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                   fn.name.text == "handleAction",
                   !fn.modifiers.contains(where: {
                       $0.name.tokenKind == .keyword(.static) ||
-                      $0.name.tokenKind == .keyword(.class)
+                          $0.name.tokenKind == .keyword(.class)
                   }),
                   fn.signature.effectSpecifiers?.asyncSpecifier != nil
             else { return false }
@@ -213,6 +208,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             }
             return TypeSyntax(tuple.with(\.elements, TupleTypeElementListSyntax(newElements)))
         }
+        if let ident = type.as(IdentifierTypeSyntax.self),
+           let genericClause = ident.genericArgumentClause
+        {
+            let newArgs = genericClause.arguments.map { arg -> GenericArgumentSyntax in
+                guard case let .type(argType) = arg.argument else { return arg }
+                let sanitized = sanitizedEnumCaseType(argType)
+                return arg.with(\.argument, .type(sanitized))
+            }
+            let newClause = genericClause.with(\.arguments, GenericArgumentListSyntax(newArgs))
+            return TypeSyntax(ident.with(\.genericArgumentClause, newClause))
+        }
         if type.is(FunctionTypeSyntax.self) {
             return TypeSyntax("@Sendable \(raw: type.trimmedDescription)")
         }
@@ -230,7 +236,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             else { return false }
             return ident.name.text == "Sendable"
         }
-        if hadEscaping && !hasSendable && attributed.baseType.is(FunctionTypeSyntax.self) {
+        if hadEscaping, !hasSendable, attributed.baseType.is(FunctionTypeSyntax.self) {
             let otherAttrs = keptAttributes.map(\.trimmedDescription).joined(separator: " ")
             let prefix = otherAttrs.isEmpty ? "@Sendable " : "\(otherAttrs) @Sendable "
             let base = attributed.baseType.trimmedDescription
@@ -245,8 +251,15 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         return TypeSyntax(cleaned.trimmed)
     }
 
+    private static func methodThrows(_ method: FunctionDeclSyntax) -> Bool {
+        method.signature.effectSpecifiers?.throwsClause != nil
+    }
+
     private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax], access: String) -> FunctionDeclSyntax {
         let accessPrefix = access.isEmpty ? "" : "\(access) "
+        let anyThrows = methods.contains(where: methodThrows)
+        let effectKeyword = anyThrows ? "async throws" : "async"
+
         if methods.isEmpty {
             return try! FunctionDeclSyntax(
                 """
@@ -261,10 +274,11 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         for method in methods {
             let methodName = method.name.text
             let caseName = methodName
+            let callPrefix = methodThrows(method) ? "try await" : "await"
 
             if method.signature.parameterClause.parameters.isEmpty {
                 caseStatements.append("case .\(caseName):")
-                caseStatements.append("    await \(methodName)()")
+                caseStatements.append("    \(callPrefix) \(methodName)()")
             } else {
                 let parameters = method.signature.parameterClause.parameters
 
@@ -289,7 +303,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 let callPattern = callArgs.joined(separator: ", ")
 
                 caseStatements.append("case .\(caseName)(\(casePattern)):")
-                caseStatements.append("    await \(methodName)(\(callPattern))")
+                caseStatements.append("    \(callPrefix) \(methodName)(\(callPattern))")
             }
         }
 
@@ -297,7 +311,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
         return try! FunctionDeclSyntax(
             """
-            \(raw: accessPrefix)func handleAction(_ action: Action) async {
+            \(raw: accessPrefix)func handleAction(_ action: Action) \(raw: effectKeyword) {
                 switch action {
                 \(raw: switchBody)
                 }

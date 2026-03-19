@@ -654,7 +654,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testExistingActionEnumSkipsExtensionAndHandleAction() {
+    func testExistingActionEnumSkipsExtensionButGeneratesHandleAction() {
         assertMacroExpansion(
             """
             @ViewModelMacro
@@ -685,6 +685,13 @@ final class ViewModelMacroTests: XCTestCase {
                 }
 
                 func onAppear() async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
             }
             """,
             macros: testMacros
@@ -1481,6 +1488,90 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
+    func testGenericOptionalClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Optional<() -> Void>) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Optional<() -> Void>) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(cb):
+                        await onDone(cb)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone(Optional<@Sendable () -> Void>)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testResultClosureParamGetsSendable() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Result<() -> Void, Error>) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onDone(_ cb: Result<() -> Void, Error>) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onDone(cb):
+                        await onDone(cb)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onDone(Result<@Sendable () -> Void, Error>)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
     func testPublicActorWithPublicMethodsStaysPublic() {
         assertMacroExpansion(
             """
@@ -1520,6 +1611,100 @@ final class ViewModelMacroTests: XCTestCase {
             extension TestViewModel {
                 public enum Action: Sendable {
                     case onAppear
+                    case onSave
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testThrowingMethodGeneratesAsyncThrowsHandleAction() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave(name: String) async throws {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave(name: String) async throws {}
+
+                func handleAction(_ action: Action) async throws {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onSave(name):
+                        try await onSave(name: name)
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                    case onSave(name: String)
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testAllThrowingMethodsGenerateAsyncThrowsHandleAction() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onLoad() async throws {}
+                func onSave() async throws {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onLoad() async throws {}
+                func onSave() async throws {}
+
+                func handleAction(_ action: Action) async throws {
+                    switch action {
+                    case .onLoad:
+                        try await onLoad()
+                    case .onSave:
+                        try await onSave()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onLoad
                     case onSave
                 }
             }
