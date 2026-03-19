@@ -654,6 +654,147 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
+    func testExistingActionEnumSkipsExtensionAndHandleAction() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                enum Action: Sendable {
+                    case custom
+                }
+
+                func onAppear() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                enum Action: Sendable {
+                    case custom
+                }
+
+                func onAppear() async {}
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testStaticOnMethodsAreExcluded() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                static func onLoad() async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                static func onLoad() async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testOverloadedOnMethodsEmitDiagnostics() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave() async {}
+                func onSave(id: UUID) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSave() async {}
+                func onSave(id: UUID) async {}
+
+                public func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                public enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@ViewModel: overloaded 'on...' method 'onSave' cannot be synthesized; rename to disambiguate",
+                    line: 10,
+                    column: 5,
+                    severity: .error
+                ),
+                DiagnosticSpec(
+                    message: "@ViewModel: overloaded 'on...' method 'onSave' cannot be synthesized; rename to disambiguate",
+                    line: 11,
+                    column: 5,
+                    severity: .error
+                ),
+            ],
+            macros: testMacros
+        )
+    }
+
     func testExistingHandleActionIsNotDuplicated() {
         assertMacroExpansion(
             """

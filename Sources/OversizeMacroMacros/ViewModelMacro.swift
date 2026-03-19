@@ -4,6 +4,7 @@
 //
 
 import SwiftCompilerPlugin
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -22,7 +23,12 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
 
-        let onMethods = extractOnMethods(from: declGroup)
+        let actionExists = declGroup.memberBlock.members.contains {
+            $0.decl.as(EnumDeclSyntax.self)?.name.text == "Action"
+        }
+        guard !actionExists else { return [] }
+
+        let onMethods = filteredOnMethods(from: extractOnMethods(from: declGroup))
         let actionCases = generateActionCases(from: onMethods)
 
         let actionEnum = EnumDeclSyntax(
@@ -59,6 +65,11 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             throw ViewModelMacroError.onlyApplicableToClassOrActor
         }
 
+        let actionEnumExists = declGroup.memberBlock.members.contains {
+            $0.decl.as(EnumDeclSyntax.self)?.name.text == "Action"
+        }
+        guard !actionEnumExists else { return [] }
+
         let alreadyExists = declGroup.memberBlock.members.contains {
             guard let fn = $0.decl.as(FunctionDeclSyntax.self),
                   fn.name.text == "handleAction" else { return false }
@@ -68,7 +79,14 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         guard !alreadyExists else { return [] }
 
         let access = accessModifier(from: declGroup)
-        let onMethods = extractOnMethods(from: declGroup)
+        let rawMethods = extractOnMethods(from: declGroup)
+        let nameCounts = Dictionary(grouping: rawMethods, by: \.name.text)
+        for (_, methods) in nameCounts where methods.count > 1 {
+            for method in methods {
+                context.diagnose(Diagnostic(node: method, message: ViewModelMacroDiagnostic.overloadedOnMethod(method.name.text)))
+            }
+        }
+        let onMethods = filteredOnMethods(from: rawMethods)
         let handleActionMethod = generateHandleActionMethod(from: onMethods, access: access)
 
         return [DeclSyntax(handleActionMethod)]
@@ -78,12 +96,21 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         declaration.memberBlock.members.compactMap { member in
             guard let function = member.decl.as(FunctionDeclSyntax.self),
                   function.name.text.hasPrefix("on"),
-                  !function.modifiers.contains(where: { $0.name.tokenKind == .keyword(.private) })
+                  !function.modifiers.contains(where: { $0.name.tokenKind == .keyword(.private) }),
+                  !function.modifiers.contains(where: {
+                      $0.name.tokenKind == .keyword(.static) ||
+                          $0.name.tokenKind == .keyword(.class)
+                  })
             else {
                 return nil
             }
             return function
         }
+    }
+
+    private static func filteredOnMethods(from methods: [FunctionDeclSyntax]) -> [FunctionDeclSyntax] {
+        let nameCounts = Dictionary(grouping: methods, by: \.name.text)
+        return methods.filter { nameCounts[$0.name.text]!.count == 1 }
     }
 
     private static func generateActionCases(from methods: [FunctionDeclSyntax]) -> [EnumCaseDeclSyntax] {
@@ -219,6 +246,20 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             }
         }
         return DeclModifierListSyntax()
+    }
+}
+
+struct ViewModelMacroDiagnostic: DiagnosticMessage {
+    let message: String
+    let diagnosticID: MessageID
+    let severity: DiagnosticSeverity
+
+    static func overloadedOnMethod(_ name: String) -> Self {
+        .init(
+            message: "@ViewModel: overloaded 'on...' method '\(name)' cannot be synthesized; rename to disambiguate",
+            diagnosticID: MessageID(domain: "ViewModelMacro", id: "overloadedOnMethod"),
+            severity: .error
+        )
     }
 }
 
