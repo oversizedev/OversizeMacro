@@ -113,7 +113,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                       $0.name.tokenKind == .keyword(.static) ||
                           $0.name.tokenKind == .keyword(.class)
                   }),
-                  !function.signature.parameterClause.parameters.contains(where: hasSpecifierParam(_:))
+                  !function.signature.parameterClause.parameters.contains(where: hasSpecifierParam(_:)),
+                  !function.signature.parameterClause.parameters.contains(where: { $0.ellipsis != nil })
             else {
                 return nil
             }
@@ -251,8 +252,21 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         return TypeSyntax(cleaned.trimmed)
     }
 
+    private static func methodIsAsync(_ method: FunctionDeclSyntax) -> Bool {
+        method.signature.effectSpecifiers?.asyncSpecifier != nil
+    }
+
     private static func methodThrows(_ method: FunctionDeclSyntax) -> Bool {
         method.signature.effectSpecifiers?.throwsClause != nil
+    }
+
+    private static func callPrefix(for method: FunctionDeclSyntax) -> String {
+        switch (methodIsAsync(method), methodThrows(method)) {
+        case (true, true): "try await"
+        case (true, false): "await"
+        case (false, true): "try"
+        case (false, false): ""
+        }
     }
 
     private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax], access: String) -> FunctionDeclSyntax {
@@ -274,11 +288,14 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         for method in methods {
             let methodName = method.name.text
             let caseName = methodName
-            let callPrefix = methodThrows(method) ? "try await" : "await"
+            let prefix = callPrefix(for: method)
+            let call: (String) -> String = prefix.isEmpty
+                ? { "\($0)" }
+                : { "\(prefix) \($0)" }
 
             if method.signature.parameterClause.parameters.isEmpty {
                 caseStatements.append("case .\(caseName):")
-                caseStatements.append("    \(callPrefix) \(methodName)()")
+                caseStatements.append("    \(call("\(methodName)()"))")
             } else {
                 let parameters = method.signature.parameterClause.parameters
 
@@ -303,7 +320,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 let callPattern = callArgs.joined(separator: ", ")
 
                 caseStatements.append("case .\(caseName)(\(casePattern)):")
-                caseStatements.append("    \(callPrefix) \(methodName)(\(callPattern))")
+                caseStatements.append("    \(call("\(methodName)(\(callPattern))"))")
             }
         }
 

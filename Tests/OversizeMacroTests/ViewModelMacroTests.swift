@@ -1712,4 +1712,137 @@ final class ViewModelMacroTests: XCTestCase {
             macros: testMacros
         )
     }
+
+    func testSyncOnMethodGeneratesCallWithoutAwait() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onReset() {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onReset() {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    case .onReset:
+                        onReset()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                    case onReset
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testSyncThrowingOnMethodGeneratesTryWithoutAwait() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onSave() throws {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onSave() throws {}
+
+                func handleAction(_ action: Action) async throws {
+                    switch action {
+                    case .onSave:
+                        try onSave()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onSave
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
+
+    func testVariadicParamMethodExcludedFromSynthesis() {
+        assertMacroExpansion(
+            """
+            @ViewModelMacro
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSelect(_ ids: UUID...) async {}
+            }
+            """,
+            expandedSource: """
+            public actor TestViewModel: ViewModelProtocol {
+                public var state: TestViewState
+
+                public init(state: TestViewState) {
+                    self.state = state
+                }
+
+                func onAppear() async {}
+                func onSelect(_ ids: UUID...) async {}
+
+                func handleAction(_ action: Action) async {
+                    switch action {
+                    case .onAppear:
+                        await onAppear()
+                    }
+                }
+            }
+
+            extension TestViewModel {
+                enum Action: Sendable {
+                    case onAppear
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
 }
