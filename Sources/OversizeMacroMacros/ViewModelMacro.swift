@@ -84,7 +84,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             ?? ""
         let alreadyExists = declGroup.memberBlock.members.contains {
             guard let fn = $0.decl.as(FunctionDeclSyntax.self),
-                  fn.name.text == "handleAction" else { return false }
+                  fn.name.text == "handleAction",
+                  !fn.modifiers.contains(where: {
+                      $0.name.tokenKind == .keyword(.static) ||
+                      $0.name.tokenKind == .keyword(.class)
+                  }),
+                  fn.signature.effectSpecifiers?.asyncSpecifier != nil
+            else { return false }
             let params = fn.signature.parameterClause.parameters
             guard params.count == 1, params.first?.firstName.text == "_" else { return false }
             let typeDesc = params.first?.type.trimmedDescription ?? ""
@@ -109,7 +115,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                   !function.modifiers.contains(where: {
                       $0.name.tokenKind == .keyword(.static) ||
                           $0.name.tokenKind == .keyword(.class)
-                  })
+                  }),
+                  !function.signature.parameterClause.parameters.contains(where: hasSpecifierParam(_:))
             else {
                 return nil
             }
@@ -140,12 +147,12 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                     let labelText = param.firstName.text
 
                     let enumParam = if labelText == "_" {
-                        EnumCaseParameterSyntax(type: param.type)
+                        EnumCaseParameterSyntax(type: sanitizedEnumCaseType(param.type))
                     } else {
                         EnumCaseParameterSyntax(
                             firstName: TokenSyntax.identifier(labelText),
                             colon: .colonToken(),
-                            type: param.type
+                            type: sanitizedEnumCaseType(param.type)
                         )
                     }
 
@@ -170,6 +177,47 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 }
             )
         }
+    }
+
+    private static func hasSpecifierParam(_ param: FunctionParameterSyntax) -> Bool {
+        guard let attributed = param.type.as(AttributedTypeSyntax.self) else { return false }
+        if !attributed.specifiers.isEmpty { return true }
+        return attributed.attributes.contains {
+            guard case let .attribute(attr) = $0,
+                  let ident = attr.attributeName.as(IdentifierTypeSyntax.self)
+            else { return false }
+            return ident.name.text == "autoclosure"
+        }
+    }
+
+    private static func sanitizedEnumCaseType(_ type: TypeSyntax) -> TypeSyntax {
+        guard let attributed = type.as(AttributedTypeSyntax.self) else { return type }
+        let keptAttributes: AttributeListSyntax = attributed.attributes.filter {
+            guard case let .attribute(attr) = $0,
+                  let ident = attr.attributeName.as(IdentifierTypeSyntax.self)
+            else { return true }
+            return ident.name.text != "escaping"
+        }
+        let hadEscaping = keptAttributes.count < attributed.attributes.count
+        let hasSendable = keptAttributes.contains {
+            guard case let .attribute(attr) = $0,
+                  let ident = attr.attributeName.as(IdentifierTypeSyntax.self)
+            else { return false }
+            return ident.name.text == "Sendable"
+        }
+        if hadEscaping && !hasSendable && attributed.baseType.is(FunctionTypeSyntax.self) {
+            let otherAttrs = keptAttributes.map(\.trimmedDescription).joined(separator: " ")
+            let prefix = otherAttrs.isEmpty ? "@Sendable " : "\(otherAttrs) @Sendable "
+            let base = attributed.baseType.trimmedDescription
+            return TypeSyntax("\(raw: prefix)\(raw: base)")
+        }
+        let cleaned = attributed
+            .with(\.specifiers, TypeSpecifierListSyntax([]))
+            .with(\.attributes, keptAttributes)
+        if cleaned.specifiers.isEmpty, cleaned.attributes.isEmpty {
+            return TypeSyntax(attributed.baseType.trimmed)
+        }
+        return TypeSyntax(cleaned.trimmed)
     }
 
     private static func generateHandleActionMethod(from methods: [FunctionDeclSyntax], access: String) -> FunctionDeclSyntax {
@@ -236,8 +284,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         let accessKeywords: Set<Keyword> = [.public, .open, .internal, .fileprivate, .private]
         for mod in decl.modifiers {
             if case let .keyword(kw) = mod.name.tokenKind, accessKeywords.contains(kw) {
-                // open is valid for class members but map to public for clarity
-                return kw == .open ? "public" : mod.name.text
+                return mod.name.text
             }
         }
         return ""
