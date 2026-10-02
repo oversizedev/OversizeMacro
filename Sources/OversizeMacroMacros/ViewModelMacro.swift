@@ -24,10 +24,18 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
 
         let actionExists = declGroup.memberBlock.members.contains {
-            if let e = $0.decl.as(EnumDeclSyntax.self) { return e.name.text == "Action" }
-            if let s = $0.decl.as(StructDeclSyntax.self) { return s.name.text == "Action" }
-            if let c = $0.decl.as(ClassDeclSyntax.self) { return c.name.text == "Action" }
-            if let t = $0.decl.as(TypeAliasDeclSyntax.self) { return t.name.text == "Action" }
+            if let e = $0.decl.as(EnumDeclSyntax.self) {
+                return e.name.text == "Action"
+            }
+            if let s = $0.decl.as(StructDeclSyntax.self) {
+                return s.name.text == "Action"
+            }
+            if let c = $0.decl.as(ClassDeclSyntax.self) {
+                return c.name.text == "Action"
+            }
+            if let t = $0.decl.as(TypeAliasDeclSyntax.self) {
+                return t.name.text == "Action"
+            }
             return false
         }
         guard !actionExists else { return [] }
@@ -184,7 +192,9 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
     private static func hasSpecifierParam(_ param: FunctionParameterSyntax) -> Bool {
         guard let attributed = param.type.as(AttributedTypeSyntax.self) else { return false }
-        if !attributed.specifiers.isEmpty { return true }
+        if !attributed.specifiers.isEmpty {
+            return true
+        }
         return attributed.attributes.contains {
             guard case let .attribute(attr) = $0,
                   let ident = attr.attributeName.as(IdentifierTypeSyntax.self)
@@ -364,7 +374,9 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static func accessRank(ofDecl decl: some DeclGroupSyntax) -> Int {
         for mod in decl.modifiers {
             if case let .keyword(kw) = mod.name.tokenKind {
-                if let rank = keywordRank[kw] { return rank }
+                if let rank = keywordRank[kw] {
+                    return rank
+                }
             }
         }
         return 2
@@ -373,7 +385,9 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static func accessRank(ofMethod fn: FunctionDeclSyntax) -> Int {
         for mod in fn.modifiers {
             if case let .keyword(kw) = mod.name.tokenKind {
-                if let rank = keywordRank[kw] { return rank }
+                if let rank = keywordRank[kw] {
+                    return rank
+                }
             }
         }
         return 2
